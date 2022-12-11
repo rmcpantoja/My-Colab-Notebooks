@@ -1,1 +1,333 @@
-{"cells":[{"cell_type":"markdown","metadata":{"id":"v5hvo8QWN-a9"},"source":["#🗣️ **Whisper** - *[Notebook original](https://colab.research.google.com/drive/1CvvYPAFemIZdSOt9fhN541esSlZR7Ic6) creado por [DotCSV](https://www.youtube.com/channel/UCy5znSnfMsDwaLlROnZ7Qbg)*\n","* Modificado por [rmcpantoja](http://github.com/rmcpantoja), con el propósito de implementar el soporte para datasets de audio y transcripciones compatibles para entrenarlos con sintetizadores de voz."]},{"cell_type":"markdown","source":["🚨 Ten activada la **Aceleración por hardware** con GPU en `\"Entorno de ejecución\" > \"Cambiar tipo de entorno de ejecución\"`"],"metadata":{"id":"f-BcD0b8hwdA"}},{"cell_type":"code","source":["#@title ⚙️ Ejecutar esta celda para instalar las librería.\n","\"\"\"\n","To write this piece of code I took inspiration/code from a lot of places.\n","It was late night, so I'm not sure how much I created or just copied o.O\n","Here are some of the possible references:\n","https://blog.addpipe.com/recording-audio-in-the-browser-using-pure-html5-and-minimal-javascript/\n","https://stackoverflow.com/a/18650249\n","https://hacks.mozilla.org/2014/06/easy-audio-capture-with-the-mediarecorder-api/\n","https://air.ghost.io/recording-to-an-audio-file-using-html5-and-js/\n","https://stackoverflow.com/a/49019356\n","\"\"\"\n","!mkdir /content/wavs\n","!pip install git+https://github.com/openai/whisper.git\n","!pip install jiwer\n","\n","from IPython.display import HTML, Audio\n","from google.colab.output import eval_js\n","from base64 import b64decode\n","import numpy as np\n","from scipy.io.wavfile import read as wav_read\n","import io\n","import ffmpeg\n","\n","AUDIO_HTML = \"\"\"\n","<script>\n","var my_div = document.createElement(\"DIV\");\n","var my_p = document.createElement(\"P\");\n","var my_btn = document.createElement(\"BUTTON\");\n","var t = document.createTextNode(\"Press to start recording\");\n","\n","my_btn.appendChild(t);\n","//my_p.appendChild(my_btn);\n","my_div.appendChild(my_btn);\n","document.body.appendChild(my_div);\n","\n","var base64data = 0;\n","var reader;\n","var recorder, gumStream;\n","var recordButton = my_btn;\n","\n","var handleSuccess = function(stream) {\n","  gumStream = stream;\n","  var options = {\n","    //bitsPerSecond: 8000, //chrome seems to ignore, always 48k\n","    mimeType : 'audio/webm;codecs=opus'\n","    //mimeType : 'audio/webm;codecs=pcm'\n","  };            \n","  //recorder = new MediaRecorder(stream, options);\n","  recorder = new MediaRecorder(stream);\n","  recorder.ondataavailable = function(e) {            \n","    var url = URL.createObjectURL(e.data);\n","    var preview = document.createElement('audio');\n","    preview.controls = true;\n","    preview.src = url;\n","    document.body.appendChild(preview);\n","\n","    reader = new FileReader();\n","    reader.readAsDataURL(e.data); \n","    reader.onloadend = function() {\n","      base64data = reader.result;\n","      //console.log(\"Inside FileReader:\" + base64data);\n","    }\n","  };\n","  recorder.start();\n","  };\n","\n","recordButton.innerText = \"Recording... press to stop\";\n","\n","navigator.mediaDevices.getUserMedia({audio: true}).then(handleSuccess);\n","\n","\n","function toggleRecording() {\n","  if (recorder && recorder.state == \"recording\") {\n","      recorder.stop();\n","      gumStream.getAudioTracks()[0].stop();\n","      recordButton.innerText = \"Saving the recording... pls wait!\"\n","  }\n","}\n","\n","// https://stackoverflow.com/a/951057\n","function sleep(ms) {\n","  return new Promise(resolve => setTimeout(resolve, ms));\n","}\n","\n","var data = new Promise(resolve=>{\n","//recordButton.addEventListener(\"click\", toggleRecording);\n","recordButton.onclick = ()=>{\n","toggleRecording()\n","\n","sleep(2000).then(() => {\n","  // wait 2000ms for the data to be available...\n","  // ideally this should use something like await...\n","  //console.log(\"Inside data:\" + base64data)\n","  resolve(base64data.toString())\n","\n","});\n","\n","}\n","});\n","      \n","</script>\n","\"\"\"\n","\n","def get_audio():\n","  display(HTML(AUDIO_HTML))\n","  data = eval_js(\"data\")\n","  binary = b64decode(data.split(',')[1])\n","  \n","  process = (ffmpeg\n","    .input('pipe:0')\n","    .output('pipe:1', format='wav')\n","    .run_async(pipe_stdin=True, pipe_stdout=True, pipe_stderr=True, quiet=True, overwrite_output=True)\n","  )\n","  output, err = process.communicate(input=binary)\n","  \n","  riff_chunk_size = len(output) - 8\n","  # Break up the chunk size into four bytes, held in b.\n","  q = riff_chunk_size\n","  b = []\n","  for i in range(4):\n","      q, r = divmod(q, 256)\n","      b.append(r)\n","\n","  # Replace bytes 4:8 in proc.stdout with the actual size of the RIFF chunk.\n","  riff = output[:4] + bytes(b) + output[8:]\n","\n","  sr, audio = wav_read(io.BytesIO(riff))\n","\n","  return audio, sr"],"metadata":{"cellView":"form","id":"SJl7HJOeo0-P"},"execution_count":null,"outputs":[]},{"cell_type":"code","source":["#@title montar drive\n","from google.colab import drive\n","drive.mount('/content/drive', force_remount=True)"],"metadata":{"cellView":"form","id":"O2d9ZflecFXS"},"execution_count":null,"outputs":[]},{"cell_type":"markdown","source":["## Configuración"],"metadata":{"id":"XXZooJ-Wy9EL"}},{"cell_type":"code","source":["#@title extraer dataset (wavs.zip o similar)\n","wavs_path = \"\" #@param {type: \"string\"}\n","import zipfile\n","import os\n","if os.listdir('/content/wavs/'):\n","  !rm /content/wavs/*\n","%cd /content/wavs\n","if not os.path.exists(wavs_path):\n","  raise Exception(\"La ruta de audios no es correcta.\")\n","if not zipfile.is_zipfile(wavs_path):\n","  raise Exception(\"Esto no es un archivo comprimido (zip)\")\n","!unzip -j \"$wavs_path\" -d /content/wavs"],"metadata":{"id":"Sw2GCmpSFG3g","cellView":"form"},"execution_count":null,"outputs":[]},{"cell_type":"code","source":["#@title Comenzar la transcripción de todos los audios cargados\n","transcriptionFiles = \"/content/lists\"\n","%cd /content/wavs\n","import os\n","import numpy as np\n","print(\"Obteniendo archivos...\")\n","# folder path\n","dir_path = '/content/wavs'\n","\n","# list to store files\n","filelist = ''\n","files = []\n","# Iterate directory\n","for path in os.listdir(dir_path):\n","    # check if current path is a file\n","    if os.path.isfile(os.path.join(dir_path, path)):\n","        filelist += '\"'+path+'\"  '\n","        files.append(path)\n","# pendiente: ordenar nombres de los audios. Np.sort no funciona ¿Alguna alternativa?\n","np.sort(files)\n","#print(files)\n","print(\"Transcribiendo...\")\n","!whisper {filelist} --task transcribe --model medium --verbose False --output_dir {transcriptionFiles}\n","print(\"Almacenando todas las transcripciones (list.txt)\")\n","newlist = open(\"/content/list.txt\", \"w\")\n","for filename in files:\n","  transcription = open(transcriptionFiles+\"/\"+filename+\".txt\", \"r\")\n","  text = transcription.read()\n","  text = text.strip()\n","  transcription.close\n","  newlist.write(\"wavs/\"+filename+\"|\"+text+\"\\n\")\n","newlist.close()"],"metadata":{"id":"2OdsSM57MjKk","cellView":"form"},"execution_count":null,"outputs":[]},{"cell_type":"code","source":["#@title ¿Descargar transcripción?\n","#@markdown Ejecuta esta celda si quieres descargar el archivo list.txt generado con las transcripciones.\n","from google.colab import files\n","files.download('/content/list.txt')"],"metadata":{"id":"Aejy9Haxy81U","cellView":"form"},"execution_count":null,"outputs":[]},{"cell_type":"markdown","source":["## 👉 eliminar dataset\n","\n","Ejecuta esta celda si quieres eliminar el dataset actual y transcribir otro."],"metadata":{"id":"wOdSeKWnzJSV"}},{"cell_type":"code","source":["!rm -r /content/wavs/* /content/list.txt"],"metadata":{"id":"UlVRSbPC7IRJ"},"execution_count":null,"outputs":[]}],"metadata":{"accelerator":"GPU","colab":{"collapsed_sections":["wOdSeKWnzJSV"],"provenance":[{"file_id":"1CvvYPAFemIZdSOt9fhN541esSlZR7Ic6","timestamp":1668532151022},{"file_id":"1lXtPVNqMy-lg1QrGOG9qZ96rOXNMnNrh","timestamp":1668360149938},{"file_id":"https://github.com/openai/whisper/blob/master/notebooks/LibriSpeech.ipynb","timestamp":1667820298272}],"private_outputs":true},"gpuClass":"standard","kernelspec":{"display_name":"Python 3 (ipykernel)","language":"python","name":"python3"},"language_info":{"codemirror_mode":{"name":"ipython","version":3},"file_extension":".py","mimetype":"text/x-python","name":"python","nbconvert_exporter":"python","pygments_lexer":"ipython3","version":"3.9.9"}},"nbformat":4,"nbformat_minor":0}
+{
+  "cells": [
+    {
+      "cell_type": "markdown",
+      "metadata": {
+        "id": "view-in-github",
+        "colab_type": "text"
+      },
+      "source": [
+        "<a href=\"https://colab.research.google.com/github/rmcpantoja/My-Colab-Notebooks/blob/main/notebooks/OpenAI%20Whisper%20-%20DotCSV%20(Speech%20dataset%20multi-transcryption%20support)\" target=\"_parent\"><img src=\"https://colab.research.google.com/assets/colab-badge.svg\" alt=\"Open In Colab\"/></a>"
+      ]
+    },
+    {
+      "cell_type": "markdown",
+      "metadata": {
+        "id": "v5hvo8QWN-a9"
+      },
+      "source": [
+        "# 🗣️ **Whisper**\n",
+        "\n",
+        "**[Notebook original](https://colab.research.google.com/drive/1CvvYPAFemIZdSOt9fhN541esSlZR7Ic6) creado por [DotCSV](https://www.youtube.com/channel/UCy5znSnfMsDwaLlROnZ7Qbg)**\n",
+        "* Modificado por [rmcpantoja](http://github.com/rmcpantoja), con el propósito de implementar el soporte para datasets de audio y transcripciones compatibles para entrenarlos con sintetizadores de voz."
+      ]
+    },
+    {
+      "cell_type": "markdown",
+      "source": [
+        "🚨 Ten activada la **Aceleración por hardware** con GPU en `\"Entorno de ejecución\" > \"Cambiar tipo de entorno de ejecución\"`"
+      ],
+      "metadata": {
+        "id": "f-BcD0b8hwdA"
+      }
+    },
+    {
+      "cell_type": "code",
+      "source": [
+        "#@title ⚙️ Ejecutar esta celda para instalar las librería.\n",
+        "\"\"\"\n",
+        "To write this piece of code I took inspiration/code from a lot of places.\n",
+        "It was late night, so I'm not sure how much I created or just copied o.O\n",
+        "Here are some of the possible references:\n",
+        "https://blog.addpipe.com/recording-audio-in-the-browser-using-pure-html5-and-minimal-javascript/\n",
+        "https://stackoverflow.com/a/18650249\n",
+        "https://hacks.mozilla.org/2014/06/easy-audio-capture-with-the-mediarecorder-api/\n",
+        "https://air.ghost.io/recording-to-an-audio-file-using-html5-and-js/\n",
+        "https://stackoverflow.com/a/49019356\n",
+        "\"\"\"\n",
+        "!mkdir /content/wavs\n",
+        "!pip install git+https://github.com/openai/whisper.git\n",
+        "!pip install jiwer\n",
+        "!pip install --upgrade natsort\n",
+        "from IPython.display import HTML, Audio\n",
+        "from google.colab.output import eval_js\n",
+        "from base64 import b64decode\n",
+        "import numpy as np\n",
+        "from scipy.io.wavfile import read as wav_read\n",
+        "import io\n",
+        "import ffmpeg\n",
+        "\n",
+        "AUDIO_HTML = \"\"\"\n",
+        "<script>\n",
+        "var my_div = document.createElement(\"DIV\");\n",
+        "var my_p = document.createElement(\"P\");\n",
+        "var my_btn = document.createElement(\"BUTTON\");\n",
+        "var t = document.createTextNode(\"Press to start recording\");\n",
+        "\n",
+        "my_btn.appendChild(t);\n",
+        "//my_p.appendChild(my_btn);\n",
+        "my_div.appendChild(my_btn);\n",
+        "document.body.appendChild(my_div);\n",
+        "\n",
+        "var base64data = 0;\n",
+        "var reader;\n",
+        "var recorder, gumStream;\n",
+        "var recordButton = my_btn;\n",
+        "\n",
+        "var handleSuccess = function(stream) {\n",
+        "  gumStream = stream;\n",
+        "  var options = {\n",
+        "    //bitsPerSecond: 8000, //chrome seems to ignore, always 48k\n",
+        "    mimeType : 'audio/webm;codecs=opus'\n",
+        "    //mimeType : 'audio/webm;codecs=pcm'\n",
+        "  };            \n",
+        "  //recorder = new MediaRecorder(stream, options);\n",
+        "  recorder = new MediaRecorder(stream);\n",
+        "  recorder.ondataavailable = function(e) {            \n",
+        "    var url = URL.createObjectURL(e.data);\n",
+        "    var preview = document.createElement('audio');\n",
+        "    preview.controls = true;\n",
+        "    preview.src = url;\n",
+        "    document.body.appendChild(preview);\n",
+        "\n",
+        "    reader = new FileReader();\n",
+        "    reader.readAsDataURL(e.data); \n",
+        "    reader.onloadend = function() {\n",
+        "      base64data = reader.result;\n",
+        "      //console.log(\"Inside FileReader:\" + base64data);\n",
+        "    }\n",
+        "  };\n",
+        "  recorder.start();\n",
+        "  };\n",
+        "\n",
+        "recordButton.innerText = \"Recording... press to stop\";\n",
+        "\n",
+        "navigator.mediaDevices.getUserMedia({audio: true}).then(handleSuccess);\n",
+        "\n",
+        "\n",
+        "function toggleRecording() {\n",
+        "  if (recorder && recorder.state == \"recording\") {\n",
+        "      recorder.stop();\n",
+        "      gumStream.getAudioTracks()[0].stop();\n",
+        "      recordButton.innerText = \"Saving the recording... pls wait!\"\n",
+        "  }\n",
+        "}\n",
+        "\n",
+        "// https://stackoverflow.com/a/951057\n",
+        "function sleep(ms) {\n",
+        "  return new Promise(resolve => setTimeout(resolve, ms));\n",
+        "}\n",
+        "\n",
+        "var data = new Promise(resolve=>{\n",
+        "//recordButton.addEventListener(\"click\", toggleRecording);\n",
+        "recordButton.onclick = ()=>{\n",
+        "toggleRecording()\n",
+        "\n",
+        "sleep(2000).then(() => {\n",
+        "  // wait 2000ms for the data to be available...\n",
+        "  // ideally this should use something like await...\n",
+        "  //console.log(\"Inside data:\" + base64data)\n",
+        "  resolve(base64data.toString())\n",
+        "\n",
+        "});\n",
+        "\n",
+        "}\n",
+        "});\n",
+        "      \n",
+        "</script>\n",
+        "\"\"\"\n",
+        "\n",
+        "def get_audio():\n",
+        "  display(HTML(AUDIO_HTML))\n",
+        "  data = eval_js(\"data\")\n",
+        "  binary = b64decode(data.split(',')[1])\n",
+        "  \n",
+        "  process = (ffmpeg\n",
+        "    .input('pipe:0')\n",
+        "    .output('pipe:1', format='wav')\n",
+        "    .run_async(pipe_stdin=True, pipe_stdout=True, pipe_stderr=True, quiet=True, overwrite_output=True)\n",
+        "  )\n",
+        "  output, err = process.communicate(input=binary)\n",
+        "  \n",
+        "  riff_chunk_size = len(output) - 8\n",
+        "  # Break up the chunk size into four bytes, held in b.\n",
+        "  q = riff_chunk_size\n",
+        "  b = []\n",
+        "  for i in range(4):\n",
+        "      q, r = divmod(q, 256)\n",
+        "      b.append(r)\n",
+        "\n",
+        "  # Replace bytes 4:8 in proc.stdout with the actual size of the RIFF chunk.\n",
+        "  riff = output[:4] + bytes(b) + output[8:]\n",
+        "\n",
+        "  sr, audio = wav_read(io.BytesIO(riff))\n",
+        "\n",
+        "  return audio, sr"
+      ],
+      "metadata": {
+        "cellView": "form",
+        "id": "SJl7HJOeo0-P"
+      },
+      "execution_count": null,
+      "outputs": []
+    },
+    {
+      "cell_type": "code",
+      "source": [
+        "#@title montar drive\n",
+        "from google.colab import drive\n",
+        "drive.mount('/content/drive', force_remount=True)"
+      ],
+      "metadata": {
+        "cellView": "form",
+        "id": "O2d9ZflecFXS"
+      },
+      "execution_count": null,
+      "outputs": []
+    },
+    {
+      "cell_type": "markdown",
+      "source": [
+        "## Configuración"
+      ],
+      "metadata": {
+        "id": "XXZooJ-Wy9EL"
+      }
+    },
+    {
+      "cell_type": "code",
+      "source": [
+        "#@title extraer dataset (wavs.zip o similar)\n",
+        "wavs_path = \"/content/drive/MyDrive/Fakeyou/pichon/wavs.zip\" #@param {type: \"string\"}\n",
+        "import zipfile\n",
+        "import os\n",
+        "if os.listdir('/content/wavs/'):\n",
+        "  !rm /content/wavs/*\n",
+        "%cd /content/wavs\n",
+        "if not os.path.exists(wavs_path):\n",
+        "  raise Exception(\"La ruta de audios no es correcta.\")\n",
+        "if not zipfile.is_zipfile(wavs_path):\n",
+        "  raise Exception(\"Esto no es un archivo comprimido (zip)\")\n",
+        "!unzip -j \"$wavs_path\" -d /content/wavs"
+      ],
+      "metadata": {
+        "id": "Sw2GCmpSFG3g",
+        "cellView": "form"
+      },
+      "execution_count": null,
+      "outputs": []
+    },
+    {
+      "cell_type": "code",
+      "source": [
+        "#@title Comenzar la transcripción de todos los audios cargados\n",
+        "transcriptionFiles = \"/content/lists\"\n",
+        "%cd /content/wavs\n",
+        "import os\n",
+        "from natsort import os_sorted\n",
+        "print(\"Obteniendo archivos...\")\n",
+        "# folder path\n",
+        "dir_path = '/content/wavs'\n",
+        "\n",
+        "# list to store files\n",
+        "filelist = ''\n",
+        "files = []\n",
+        "# Iterate directory\n",
+        "for path in os_sorted(os.listdir(dir_path)):\n",
+        "    # check if current path is a file\n",
+        "    if os.path.isfile(os.path.join(dir_path, path)):\n",
+        "        filelist += '\"'+path+'\"  '\n",
+        "        files.append(path)\n",
+        "#print(files)\n",
+        "print(\"Transcribiendo...\")\n",
+        "!whisper {filelist} --task transcribe --model medium --verbose False --output_dir {transcriptionFiles}\n",
+        "print(\"Almacenando todas las transcripciones (list.txt)\")\n",
+        "newlist = open(\"/content/list.txt\", \"w\")\n",
+        "for filename in files:\n",
+        "  print(\"Procesando \"+filename+\"...\")\n",
+        "  transcription = open(transcriptionFiles+\"/\"+filename+\".txt\", \"r\")\n",
+        "  text = transcription.read()\n",
+        "  text = text.strip()\n",
+        "  text = text.replace('\\n', ' ')\n",
+        "  transcription.close\n",
+        "  newlist.write(\"wavs/\"+filename+\"|\"+text+\"\\n\")\n",
+        "newlist.close()\n",
+        "print(\"¡Lista creada!\")"
+      ],
+      "metadata": {
+        "id": "2OdsSM57MjKk",
+        "cellView": "form"
+      },
+      "execution_count": null,
+      "outputs": []
+    },
+    {
+      "cell_type": "code",
+      "source": [
+        "#@title ¿Descargar transcripción?\n",
+        "#@markdown Ejecuta esta celda si quieres descargar el archivo list.txt generado con las transcripciones.\n",
+        "from google.colab import files\n",
+        "files.download('/content/list.txt')"
+      ],
+      "metadata": {
+        "id": "Aejy9Haxy81U",
+        "cellView": "form"
+      },
+      "execution_count": null,
+      "outputs": []
+    },
+    {
+      "cell_type": "markdown",
+      "source": [
+        "## 👉 eliminar dataset\n",
+        "\n",
+        "Ejecuta esta celda si quieres eliminar el dataset actual y transcribir otro."
+      ],
+      "metadata": {
+        "id": "wOdSeKWnzJSV"
+      }
+    },
+    {
+      "cell_type": "code",
+      "source": [
+        "!rm -r /content/wavs/* /content/list.txt"
+      ],
+      "metadata": {
+        "id": "UlVRSbPC7IRJ"
+      },
+      "execution_count": null,
+      "outputs": []
+    }
+  ],
+  "metadata": {
+    "accelerator": "GPU",
+    "colab": {
+      "collapsed_sections": [
+        "wOdSeKWnzJSV"
+      ],
+      "provenance": [],
+      "private_outputs": true,
+      "include_colab_link": true
+    },
+    "gpuClass": "standard",
+    "kernelspec": {
+      "display_name": "Python 3 (ipykernel)",
+      "language": "python",
+      "name": "python3"
+    },
+    "language_info": {
+      "codemirror_mode": {
+        "name": "ipython",
+        "version": 3
+      },
+      "file_extension": ".py",
+      "mimetype": "text/x-python",
+      "name": "python",
+      "nbconvert_exporter": "python",
+      "pygments_lexer": "ipython3",
+      "version": "3.9.9"
+    }
+  },
+  "nbformat": 4,
+  "nbformat_minor": 0
+}
