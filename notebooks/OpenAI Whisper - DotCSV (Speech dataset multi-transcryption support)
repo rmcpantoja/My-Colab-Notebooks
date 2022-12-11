@@ -240,7 +240,7 @@
         "        files.append(path)\n",
         "#print(files)\n",
         "print(\"Transcribiendo...\")\n",
-        "!whisper {filelist} --task transcribe --model medium --verbose False --output_dir {transcriptionFiles}\n",
+        "!whisper {filelist} --task transcribe --model medium --languaje es --verbose False --output_dir {transcriptionFiles}\n",
         "print(\"Almacenando todas las transcripciones (list.txt)\")\n",
         "newlist = open(\"/content/list.txt\", \"w\")\n",
         "for filename in files:\n",
