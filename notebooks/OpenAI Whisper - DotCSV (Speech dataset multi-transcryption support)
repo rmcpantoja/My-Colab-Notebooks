@@ -244,7 +244,6 @@
         "print(\"Almacenando todas las transcripciones (list.txt)\")\n",
         "newlist = open(\"/content/list.txt\", \"w\")\n",
         "for filename in files:\n",
-        "  print(\"Procesando \"+filename+\"...\")\n",
         "  transcription = open(transcriptionFiles+\"/\"+filename+\".txt\", \"r\")\n",
         "  text = transcription.read()\n",
         "  text = text.strip()\n",
