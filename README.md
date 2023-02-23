@@ -26,7 +26,7 @@ Feel free to submit pull requests to improve these notebooks. Any contribution t
 	* [Spanish](http://colab.research.google.com/github/rmcpantoja/My-Colab-Notebooks/blob/main/notebooks/spanish_flowtron_training_beta2.ipynb)
 * ForwardTacotron (training notebook)
 	* [English](http://colab.research.google.com/github/rmcpantoja/My-Colab-Notebooks/blob/main/notebooks/forwardTacotron_training(beta5).ipynb)
-	* [Spanish](http://colab.research.google.com/github/rmcpantoja/My-Colab-Notebooks/blob/main/notebooks/forwardTacotron_español_entrenamiento(beta6).ipynb)
+	* [Spanish](http://colab.research.google.com/github/rmcpantoja/My-Colab-Notebooks/blob/main/notebooks/forwardTacotron_español_entrenamiento(beta7).ipynb)
 * [RHVoice multilingual training notebook](https://colab.research.google.com/github/rmcpantoja/RHVoice/blob/master/src/notebooks/RHVoice_training.ipynb)
 * Unit Selection TTS (spanish TTS)
 	* [Training notebook](http://colab.research.google.com/github/rmcpantoja/My-Colab-Notebooks/blob/main/notebooks/unitSelectionTts_trainingNotebook.ipynb)
