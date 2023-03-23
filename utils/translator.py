@@ -12,7 +12,9 @@ class Translator:
             self.configs[language_name] = config
 
     def translate(self, language_name, string):
-        if language_name not in self.configs:
+        if language_name == "en":
+            return string
+        elif language_name not in self.configs:
             self.load_language(language_name)
         config = self.configs[language_name]
         try:
