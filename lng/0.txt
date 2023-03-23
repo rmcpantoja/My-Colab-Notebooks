@@ -1,0 +1,7 @@
+[language info]
+Name=
+code=
+version=
+author=
+Copyright=
+[Strings]
