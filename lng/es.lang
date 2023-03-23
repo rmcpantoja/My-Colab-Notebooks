@@ -1,24 +1,24 @@
 [language info]
-Name=Español
+Name=EspaÃ±ol
 code=Es
 version=0.1
 author=Mateo Cedillo
-Copyright=© 2018-2023 MT Programs, todos los derechos Reservados 
+Copyright=Â© 2018-2023 MT Programs, todos los derechos Reservados 
 [Strings]
 Loading tts checkpoint=Cargando punto de control tts
 Initialized tts model:=Modelo tts iniciado:
 Using device:=Usando el dispositivo:
 Restored model with step=Modelo restaurado al paso
 Rate:=Velocidad:
-HiFI-GAN model failed to download!=¡Ocurrió un error al descargar el modelo HiFI-GAN!
+HiFI-GAN model failed to download!=Â¡OcurriÃ³ un error al descargar el modelo HiFI-GAN!
 Pitch:=Tono:
-Energy:=Energía:
-Enter text here, then press synthesize to generate.=Escribe el texto aquí, luego pulsa sintetizar para generar.
+Energy:=EnergÃ­a:
+Enter text here, then press synthesize to generate.=Escribe el texto aquÃ­, luego pulsa sintetizar para generar.
 Text to synthesize=Texto a sintetizar
 Synthesize=Sintetizar
 Sample rate:=Frecuencia de muestreo:
 Auto-play=Auto-reproducir
-Click here to synthesize the text.=Haz clic aquí para sintetizar el texto.
+Click here to synthesize the text.=Haz clic aquÃ­ para sintetizar el texto.
 Clear=Limpiar
 Clear the audio history.=Limpiar el historial de audio.
 audio history:=Historial de audio:
