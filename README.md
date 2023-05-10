@@ -1,4 +1,4 @@
-# Welcome to My-Colab-Notebooks
+# Welcome to our-Colab-Notebooks
 
 This repository contains [Jupyter Notebooks](http://jupyter.org/) I've made, as well as notebooks I'm still working on, or just test notebooks with code (notebooks-dev). Below are the notebooks available:
 
@@ -31,3 +31,7 @@ Feel free to submit pull requests to improve these notebooks. Any contribution t
 * Unit Selection TTS (spanish TTS)
 	* [Training notebook](http://colab.research.google.com/github/rmcpantoja/My-Colab-Notebooks/blob/main/notebooks/unitSelectionTts_trainingNotebook.ipynb)
 	* [Synthesis notebook](http://colab.research.google.com/github/rmcpantoja/My-Colab-Notebooks/blob/main/notebooks/unitSelectionTts_synthesis_notebook.ipynb)
+
+## **Speech to speech**
+
+* [Soft VC - VITS singing voice conversion (spanish)](https://colab.research.google.com/github/rmcpantoja/My-Colab-Notebooks/blob/main/notebooks/Cuaderno_completo_de_So_Vits_SVC_en_espa%C3%B1ol.ipynb)
