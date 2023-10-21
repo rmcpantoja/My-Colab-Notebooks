@@ -17,7 +17,7 @@ Feel free to submit pull requests to improve these notebooks. Any contribution t
 * Whisper inference notebook (whit LJSpeech multi-transcription support)
 	* [English](http://colab.research.google.com/github/rmcpantoja/My-Colab-Notebooks/blob/main/notebooks/OpenAI Whisper - DotCSV (Speech dataset multi-transcryption support)en.ipynb)
 	* [French](http://colab.research.google.com/github/rmcpantoja/My-Colab-Notebooks/blob/main/notebooks/OpenAI Whisper - DotCSV (Speech dataset multi-transcryption support)fr.ipynb)
-	* [Spanish](http://colab.research.google.com/github/rmcpantoja/My-Colab-Notebooks/blob/main/notebooks/OpenAI_Whisper_-_DotCSV_(Speech dataset multi-transcryption support)es.ipynb)
+	* [Spanish](http://colab.research.google.com/github/rmcpantoja/My-Colab-Notebooks/blob/main/notebooks/OpenAI_Whisper_-_DotCSV_(Speech_dataset_multi-transcryption_support)es.ipynb)
 
 ### **Text To Speech**
 
